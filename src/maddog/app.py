@@ -13,16 +13,20 @@ ALL_TODO_RE = re.compile(r"^(TODO|IDEA|DONE):?\s*([^\{\n]+)(\{.*\})?", re.MULTIL
 TODO_TODO_RE = re.compile(r"(TODO):?\s*")
 
 
-def parse_todo_tag(tag):
+def parse_todo_tag(tag) -> tuple[str, str]:
+    """
+    return tag, style_override
+    """
     if not tag:
-        return ""
+        return "", ""
     name, val = tag.strip("{}").split(":", 1)
     if name == "by":
         dval = parser.parse(val)
         days_left = dval - now
-        return f"by {dval.date()} ({days_left.days})"
+        style = "red" if days_left.days <= 0 else ""
+        return f"by {dval.date()} ({days_left.days})", style
     else:
-        return f"{name}:{val}"
+        return f"{name}:{val}", ""
 
 
 def scan_contents(file: pathlib.Path) -> dict:
@@ -35,11 +39,14 @@ def pull_todos(file: pathlib.Path):
     text = file.read_text()
     todos = ALL_TODO_RE.findall(text)
     for t in todos:
+        style = {"TODO": "yellow", "DONE": "#999999"}[t[0]]
+        tags, style_override = parse_todo_tag(t[2])
         yield {
             "file": file.name,
             "status": t[0],
             "description": t[1],
-            "tags": parse_todo_tag(t[2]),
+            "tags": tags,
+            "style": style_override or style,
         }
 
 
@@ -53,17 +60,19 @@ def human_readable_date(dt: datetime.datetime) -> str:
         return f"{int(delta.total_seconds() / 3600 / 24)}d ago"
 
 
-def lod_table(data: list[dict]) -> Table:
+def lod_table(data: list[dict]) -> Table | str:
     """list of dicts to Table"""
     if not data:
         return "no results"
 
     table = Table()
     for key in data[0].keys():
-        table.add_column(key)
+        if key != "style":
+            table.add_column(key)
 
     for row in data:
-        table.add_row(*(str(x) for x in row.values()))
+        style = row.pop("style", None)
+        table.add_row(*(str(x) for x in row.values()), style=style)
 
     return table
 
@@ -100,7 +109,12 @@ def ls(dirname):
         modified = datetime.datetime.fromtimestamp(st.st_mtime)
         scan = scan_contents(file)
         output.append(
-            {"file": file.name, "modified": human_readable_date(modified), **scan}
+            {
+                "file": file.name,
+                "modified": human_readable_date(modified),
+                **scan,
+                "style": "yellow" if scan["todos"] else "white",
+            }
         )
     table = lod_table(output)
     console.print(table)
