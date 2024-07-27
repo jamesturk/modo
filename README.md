@@ -10,9 +10,9 @@ A suite of tools for dealing with a directory of markdown files.
 - TODO: add config file
   - [ ] make file types configurable
   - [ ] look in local dir, then XDG_HOME
-- TODO: support checkboxes
-  - [ ] scan lists
-  - [ ] percent complete
+- DONE: support checkboxes
+  - [x] scan lists
+  - [x] percent complete
 - TODO: decide on more permanent name
 - IDEA: recurring?
 - IDEA: track changes

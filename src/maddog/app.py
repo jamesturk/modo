@@ -2,6 +2,7 @@ import click
 import pathlib
 import datetime
 import re
+from dataclasses import dataclass
 from dateutil import parser
 from rich.table import Table
 from rich.console import Console
@@ -42,6 +43,51 @@ def scan_contents(file: pathlib.Path) -> dict:
     return {"words": len(words), "todos": len(TODO_TODO_RE.findall(text))}
 
 
+def render_checkbox(done: bool):
+    return "☑" if done else "☐"
+
+
+@dataclass
+class TodoItem:
+    file: str
+    status: str
+    description: str
+    tags: list[str]
+    style: str
+    subtasks: list[tuple[bool, str]]
+
+    def fields(self):
+        return [
+            "file",
+            "status",
+            "description",
+            "tags",
+        ]
+
+    def to_row(self):
+        return [
+            self.file,
+            self.status + self.subtask_status(),
+            self.description + self.subtask_nested(),
+            " | ".join(self.tags),
+        ]
+
+    def subtask_nested(self):
+        if not self.subtasks:
+            return ""
+        else:
+            return "\n" + "\n".join(
+                f"- {render_checkbox(s[0])} {s[1]}" for s in self.subtasks
+            )
+
+    def subtask_status(self):
+        total = len(self.subtasks)
+        if not total:
+            return ""
+        done = sum(1 if st[0] else 0 for st in self.subtasks)
+        return f" {done}/{total}"
+
+
 def pull_todos(file: pathlib.Path):
     text = file.read_text().splitlines()
     active_todo = None
@@ -61,22 +107,20 @@ def pull_todos(file: pathlib.Path):
                 style = "#999999"
             elif status == "IDEA":
                 style = "blue"
-            active_todo = {
-                "file": file.name,
-                "status": status,
-                "description": description,
-                "tags": " | ".join(tag_strs),
-                "style": style,
-                "subtasks": [],
-            }
+            active_todo = TodoItem(
+                file=file.name,
+                status=status,
+                description=description,
+                tags=tag_strs,
+                style=style,
+                subtasks=[],
+            )
         elif active_todo:
             # check for checkbox if we're nested inside a todo
             checkbox = CHECKBOX_RE.match(line)
             if checkbox:
                 checkbox_status, desc = checkbox.groups()
-                active_todo["subtasks"].append(
-                    {"status": checkbox_status, "description": desc}
-                )
+                active_todo.subtasks.append((checkbox_status == "x", desc))
             else:
                 yield active_todo
                 active_todo = None
@@ -96,19 +140,17 @@ def human_readable_date(dt: datetime.datetime) -> str:
         return f"{int(delta.total_seconds() / 3600 / 24)}d ago"
 
 
-def lod_table(data: list[dict]) -> Table | str:
+def lod_table(data: list[TodoItem]) -> Table | str:
     """list of dicts to Table"""
     if not data:
         return "no results"
 
     table = Table()
-    for key in data[0].keys():
-        if key != "style":
-            table.add_column(key)
+    for key in data[0].fields():
+        table.add_column(key)
 
     for row in data:
-        style = row.pop("style", None)
-        table.add_row(*(str(x) for x in row.values()), style=style)
+        table.add_row(*row.to_row(), style=row.style)
 
     return table
 
