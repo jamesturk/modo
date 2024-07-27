@@ -10,6 +10,7 @@ from rich.console import Console
 console = Console()
 now = datetime.datetime.now()
 
+SORT_ORDER = ["TODO", "IDEA", "DONE"]
 ALL_TODO_RE = re.compile(
     r"""^
     (?:\s*-\s*)?
@@ -31,7 +32,6 @@ TODO_TODO_RE = re.compile(
 
 
 def get_files(dirname):
-    print(dirname, not dirname)
     if not dirname:
         dirname = "~/wiki/"
     else:
@@ -87,6 +87,15 @@ class TodoItem:
             self.description + self.subtask_nested(),
             " | ".join(self.tags),
         ]
+
+    def status_sort(self):
+        return SORT_ORDER.index(self.status)
+
+    def due(self):
+        for t in self.tags:
+            if t.startswith("by"):
+                return t
+        return "zzzzzzz"  # sort to end
 
     def subtask_nested(self):
         if not self.subtasks:
@@ -169,6 +178,7 @@ def todos(dirname):
     output = []  # list of data
     for file in get_files(dirname):
         output += pull_todos(file)
+    output.sort(key=lambda item: (item.status_sort(), item.due()), reverse=False)
     table = lod_table(output)
     console.print(table)
 
