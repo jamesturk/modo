@@ -9,24 +9,29 @@ from rich.console import Console
 console = Console()
 now = datetime.datetime.now()
 
-ALL_TODO_RE = re.compile(r"^(TODO|IDEA|DONE):?\s*([^\{\n]+)(\{.*\})?", re.MULTILINE)
+ALL_TODO_RE = re.compile(
+    r"""^(TODO|IDEA|DONE):?     # label starts a line
+        \s*([^\{\n]+)           # body ends at { or newline
+        (?:\s*(\{.*\}))?         # repeated variations of {...} tags
+    """,
+    re.MULTILINE | re.VERBOSE,
+)
+
+TAG_SPLIT_RE = re.compile(r"\{([^:]+):([^}]+)\}")
 TODO_TODO_RE = re.compile(r"^(TODO):?\s*")
 
 
-def parse_todo_tag(tag) -> tuple[str, str]:
+def parse_todo_tag(tag, val) -> tuple[str, str]:
     """
     return tag, style_override
     """
-    if not tag:
-        return "", ""
-    name, val = tag.strip("{}").split(":", 1)
-    if name == "by":
+    if tag == "by":
         dval = parser.parse(val)
         days_left = dval - now
         style = "red" if days_left.days <= 0 else "yellow"
         return f"by {dval.date()} ({days_left.days})", style
     else:
-        return f"{name}:{val}", ""
+        return f"{tag}:{val}", ""
 
 
 def scan_contents(file: pathlib.Path) -> dict:
@@ -38,17 +43,22 @@ def scan_contents(file: pathlib.Path) -> dict:
 def pull_todos(file: pathlib.Path):
     text = file.read_text()
     todos = ALL_TODO_RE.findall(text)
-    for t in todos:
-        tags, style = parse_todo_tag(t[2])
-        if t[0] == "DONE":
+    for todo in todos:
+        tag_strs = []
+        style = ""
+        status, description, tags = todo
+        for tag, val in TAG_SPLIT_RE.findall(tags):
+            ts, style = parse_todo_tag(tag, val)
+            tag_strs.append(ts)
+        if status == "DONE":
             style = "#999999"
-        elif t[0] == "IDEA":
+        elif status == "IDEA":
             style = "blue"
         yield {
             "file": file.name,
-            "status": t[0],
-            "description": t[1],
-            "tags": tags,
+            "status": status,
+            "description": description,
+            "tags": " | ".join(tag_strs),
             "style": style,
         }
 
