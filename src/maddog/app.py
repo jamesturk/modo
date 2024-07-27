@@ -31,9 +31,12 @@ TODO_TODO_RE = re.compile(
 
 
 def get_files(dirname):
+    print(dirname, not dirname)
     if not dirname:
         dirname = "~/wiki/"
-    p = pathlib.Path(dirname[0]).expanduser()
+    else:
+        dirname = dirname[0]
+    p = pathlib.Path(dirname).expanduser()
     return p.rglob("*.md")
 
 
