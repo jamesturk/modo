@@ -11,14 +11,14 @@ now = datetime.datetime.now()
 
 ALL_TODO_RE = re.compile(
     r"""^
-    (?:\s*[-*]\s*)?
+    (?:\s*-\s*)?
     (TODO|IDEA|DONE):?     # label starts a line
     \s*([^\{\n]+)           # body ends at { or newline
     (?:\s*(\{.*\}))?         # repeated variations of {...} tags
     """,
-    re.MULTILINE | re.VERBOSE,
+    re.VERBOSE,
 )
-
+CHECKBOX_RE = re.compile(r"\s*-\s*\[([ x]?)\]\s*(.*)")
 TAG_SPLIT_RE = re.compile(r"\{([^:]+):([^}]+)\}")
 TODO_TODO_RE = re.compile(r"^(TODO):?\s*")
 
@@ -43,26 +43,47 @@ def scan_contents(file: pathlib.Path) -> dict:
 
 
 def pull_todos(file: pathlib.Path):
-    text = file.read_text()
-    todos = ALL_TODO_RE.findall(text)
-    for todo in todos:
-        tag_strs = []
-        style = ""
-        status, description, tags = todo
-        for tag, val in TAG_SPLIT_RE.findall(tags):
-            ts, style = parse_todo_tag(tag, val)
-            tag_strs.append(ts)
-        if status == "DONE":
-            style = "#999999"
-        elif status == "IDEA":
-            style = "blue"
-        yield {
-            "file": file.name,
-            "status": status,
-            "description": description,
-            "tags": " | ".join(tag_strs),
-            "style": style,
-        }
+    text = file.read_text().splitlines()
+    active_todo = None
+    for line in text:
+        todo = ALL_TODO_RE.match(line)
+        if todo:
+            if active_todo:
+                yield active_todo
+            tag_strs = []
+            style = ""
+            status, description, tags = todo.groups()
+            if tags:
+                for tag, val in TAG_SPLIT_RE.findall(tags):
+                    ts, style = parse_todo_tag(tag, val)
+                    tag_strs.append(ts)
+            if status == "DONE":
+                style = "#999999"
+            elif status == "IDEA":
+                style = "blue"
+            active_todo = {
+                "file": file.name,
+                "status": status,
+                "description": description,
+                "tags": " | ".join(tag_strs),
+                "style": style,
+                "subtasks": [],
+            }
+        elif active_todo:
+            # check for checkbox if we're nested inside a todo
+            checkbox = CHECKBOX_RE.match(line)
+            if checkbox:
+                checkbox_status, desc = checkbox.groups()
+                active_todo["subtasks"].append(
+                    {"status": checkbox_status, "description": desc}
+                )
+            else:
+                yield active_todo
+                active_todo = None
+
+    # make sure to yield final line if needed
+    if active_todo:
+        yield active_todo
 
 
 def human_readable_date(dt: datetime.datetime) -> str:
