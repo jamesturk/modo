@@ -2,12 +2,19 @@
 
 A suite of tools for dealing with a directory of markdown files.
 
-IDEA: just markdown? todo logic might be useful outside that?
+## Tasks
 
-TODO: decide on a more permanent name, maddog/md/mddir
-
-TODO: this is an example of a todo due in the past {by:2024-07-01}
-
-TODO: this is an example of a todo with other tags {tag:example}
-
-DONE: two tags fields and status is done {tag:example} {by:2024-01-01}
+- TODO: more flags
+  - [ ] filters
+  - [ ] sorting
+- TODO: add config file
+  - [ ] make file types configurable
+  - [ ] look in local dir, then XDG_HOME
+- TODO: support checkboxes
+  - [ ] scan lists
+  - [ ] percent complete
+- TODO: decide on more permanent name
+- IDEA: recurring?
+- IDEA: track changes
+- DONE: add color {by: 2024-07-26}
+- DONE: support multi-tags {like:this} {by: 2024-07-26}

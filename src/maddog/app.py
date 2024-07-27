@@ -10,9 +10,11 @@ console = Console()
 now = datetime.datetime.now()
 
 ALL_TODO_RE = re.compile(
-    r"""^(TODO|IDEA|DONE):?     # label starts a line
-        \s*([^\{\n]+)           # body ends at { or newline
-        (?:\s*(\{.*\}))?         # repeated variations of {...} tags
+    r"""^
+    (?:\s*[-*]\s*)?
+    (TODO|IDEA|DONE):?     # label starts a line
+    \s*([^\{\n]+)           # body ends at { or newline
+    (?:\s*(\{.*\}))?         # repeated variations of {...} tags
     """,
     re.MULTILINE | re.VERBOSE,
 )
