@@ -172,13 +172,34 @@ def pull_todos(file: pathlib.Path):
         yield active_todo
 
 
+def get_todo_sort_func(keys):
+    def sort_func(item):
+        ikey = []
+        for key in keys:
+            if key == "status":
+                ikey.append(item.status_sort())
+            elif key == "due":
+                ikey.append(item.due())
+            elif key == "file":
+                ikey.append(item.file)
+        return ikey
+
+    return sort_func
+
+
 @cli.command()
 @click.argument("dirname", nargs=-1)
-def todos(dirname):
+@click.option("--sort", "-s")
+def todos(dirname, sort):
     output = []  # list of data
     for file in get_files(dirname):
         output += pull_todos(file)
-    output.sort(key=lambda item: (item.status_sort(), item.due()), reverse=False)
+    if not sort:
+        sort = ["status", "due"]
+    else:
+        sort = sort.split(",")
+    sort_func = get_todo_sort_func(sort)
+    output.sort(key=sort_func)
     table = lod_table(output)
     console.print(table)
 
@@ -190,7 +211,7 @@ def todos(dirname):
 class LsItem:
     file: str
     modified: datetime.datetime
-    words: str
+    words: int
     todos: int
     style: str
 
@@ -211,6 +232,23 @@ class LsItem:
         ]
 
 
+def get_ls_sort_func(keys):
+    def sort_func(item):
+        ikey = []
+        for key in keys:
+            if key == "file":
+                ikey.append(item.file)
+            elif key == "words":
+                ikey.append(item.words)
+            elif key == "modified":
+                ikey.append(item.modified)
+            elif key == "todos":
+                ikey.append(item.todos)
+        return ikey
+
+    return sort_func
+
+
 def human_readable_date(dt: datetime.datetime) -> str:
     delta = now - dt
     if delta < datetime.timedelta(hours=1):
@@ -229,7 +267,8 @@ def scan_contents(file: pathlib.Path) -> dict:
 
 @cli.command()
 @click.argument("dirname", nargs=-1)
-def ls(dirname):
+@click.option("--sort", "-s")
+def ls(dirname, sort):
     table = Table()
     output = []
     for file in get_files(dirname):
@@ -244,6 +283,12 @@ def ls(dirname):
                 **scan,
             )
         )
+    if not sort:
+        sort = ["file", "modified"]
+    else:
+        sort = sort.split(",")
+    sort_func = get_ls_sort_func(sort)
+    output.sort(key=sort_func)
     table = lod_table(output)
     console.print(table)
 

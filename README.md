@@ -6,7 +6,8 @@ A suite of tools for dealing with a directory of markdown files.
 
 - TODO: more flags
   - [ ] filters
-  - [ ] sorting
+  - [x] sorting
+  - [ ] reverse sort
 - TODO: add config file {by:2024-08-01}
   - [ ] make file types configurable
   - [ ] look in local dir, then XDG_HOME
