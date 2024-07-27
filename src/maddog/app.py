@@ -26,7 +26,7 @@ TODO_TODO_RE = re.compile(
     (?:\s*-\s*)?
     (TODO|IDEA|DONE):?     # label starts a line
     """,
-    re.VERBOSE,
+    re.VERBOSE | re.MULTILINE,
 )
 
 
