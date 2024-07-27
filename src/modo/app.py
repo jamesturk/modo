@@ -33,7 +33,7 @@ TODO_TODO_RE = re.compile(
 
 def get_files(dirname):
     if not dirname:
-        dirname = "~/wiki/"
+        dirname = "."
     else:
         dirname = dirname[0]
     p = pathlib.Path(dirname).expanduser()
@@ -53,6 +53,19 @@ def lod_table(data: list["TodoItem"]) -> Table | str:
         table.add_row(*row.to_row(), style=row.style)
 
     return table
+
+
+def do_sorting(output, sort, default_sort, sort_factory):
+    reverse = False
+    if not sort:
+        sort = default_sort
+    else:
+        if sort[0] == "-":
+            reverse = True
+            sort = sort[1:]
+        sort = sort.split(",")
+    sort_func = sort_factory(sort)
+    output.sort(key=sort_func, reverse=reverse)
 
 
 @click.group()
@@ -210,12 +223,7 @@ def todos(dirname, sort, filter):
         output = apply_filter(output, rule)
 
     # do sorting
-    if not sort:
-        sort = ["status", "due"]
-    else:
-        sort = sort.split(",")
-    sort_func = get_todo_sort_func(sort)
-    output.sort(key=sort_func)
+    do_sorting(output, sort, ["status", "due"], get_todo_sort_func)
 
     # display
     table = lod_table(output)
@@ -303,12 +311,7 @@ def ls(dirname, sort):
         )
 
     # sort
-    if not sort:
-        sort = ["file", "modified"]
-    else:
-        sort = sort.split(",")
-    sort_func = get_ls_sort_func(sort)
-    output.sort(key=sort_func)
+    do_sorting(output, sort, ["file", "modified"], get_ls_sort_func)
 
     # display
     table = lod_table(output)
