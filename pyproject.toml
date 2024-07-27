@@ -1,7 +1,7 @@
 [project]
-name = "maddog"
+name = "modo"
 version = "0.1.0"
-description = "markdown tools"
+description = "todos and more from simple markdown"
 authors = [{ name = "James Turk", email = "dev@jpt.sh" }]
 dependencies = ["click>=8.1.7", "rich>=13.7.1", "python-dateutil>=2.9.0.post0"]
 requires-python = ">=3.12"
@@ -9,7 +9,7 @@ readme = "README.md"
 license = { text = "MIT" }
 
 [project.scripts]
-maddog = "maddog.app:cli"
+modo = "modo.app:cli"
 
 [build-system]
 requires = ["pdm-backend"]

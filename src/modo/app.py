@@ -187,19 +187,37 @@ def get_todo_sort_func(keys):
     return sort_func
 
 
+def apply_filter(items, rule):
+    key, val = rule.split(":")
+    if key == "status":
+        return [item for item in items if item.status == val]
+    else:
+        return [item for item in items if rule in item.tags]
+
+
 @cli.command()
-@click.argument("dirname", nargs=-1)
+@click.argument("dirname", default="")
 @click.option("--sort", "-s")
-def todos(dirname, sort):
+@click.option("--filter", "-f", multiple=True)
+def todos(dirname, sort, filter):
+    # scan files
     output = []  # list of data
     for file in get_files(dirname):
         output += pull_todos(file)
+
+    # filter
+    for rule in filter:
+        output = apply_filter(output, rule)
+
+    # do sorting
     if not sort:
         sort = ["status", "due"]
     else:
         sort = sort.split(",")
     sort_func = get_todo_sort_func(sort)
     output.sort(key=sort_func)
+
+    # display
     table = lod_table(output)
     console.print(table)
 
@@ -256,7 +274,7 @@ def human_readable_date(dt: datetime.datetime) -> str:
     elif delta < datetime.timedelta(days=1):
         return f"{int(delta.total_seconds() / 3600)}h ago"
     else:
-        return f"{int(delta.total_seconds() / 3600 / 24)}d ago"
+        return f"{delta.days}d ago"
 
 
 def scan_contents(file: pathlib.Path) -> dict:
@@ -266,10 +284,10 @@ def scan_contents(file: pathlib.Path) -> dict:
 
 
 @cli.command()
-@click.argument("dirname", nargs=-1)
+@click.argument("dirname", default="")
 @click.option("--sort", "-s")
 def ls(dirname, sort):
-    table = Table()
+    # scan files
     output = []
     for file in get_files(dirname):
         st = file.stat()
@@ -283,12 +301,16 @@ def ls(dirname, sort):
                 **scan,
             )
         )
+
+    # sort
     if not sort:
         sort = ["file", "modified"]
     else:
         sort = sort.split(",")
     sort_func = get_ls_sort_func(sort)
     output.sort(key=sort_func)
+
+    # display
     table = lod_table(output)
     console.print(table)
 
