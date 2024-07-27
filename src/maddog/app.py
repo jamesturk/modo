@@ -10,7 +10,7 @@ console = Console()
 now = datetime.datetime.now()
 
 ALL_TODO_RE = re.compile(r"^(TODO|IDEA|DONE):?\s*([^\{\n]+)(\{.*\})?", re.MULTILINE)
-TODO_TODO_RE = re.compile(r"(TODO):?\s*")
+TODO_TODO_RE = re.compile(r"^(TODO):?\s*")
 
 
 def parse_todo_tag(tag) -> tuple[str, str]:
@@ -23,7 +23,7 @@ def parse_todo_tag(tag) -> tuple[str, str]:
     if name == "by":
         dval = parser.parse(val)
         days_left = dval - now
-        style = "red" if days_left.days <= 0 else ""
+        style = "red" if days_left.days <= 0 else "yellow"
         return f"by {dval.date()} ({days_left.days})", style
     else:
         return f"{name}:{val}", ""
@@ -39,14 +39,17 @@ def pull_todos(file: pathlib.Path):
     text = file.read_text()
     todos = ALL_TODO_RE.findall(text)
     for t in todos:
-        style = {"TODO": "yellow", "DONE": "#999999"}[t[0]]
-        tags, style_override = parse_todo_tag(t[2])
+        tags, style = parse_todo_tag(t[2])
+        if t[0] == "DONE":
+            style = "#999999"
+        elif t[0] == "IDEA":
+            style = "blue"
         yield {
             "file": file.name,
             "status": t[0],
             "description": t[1],
             "tags": tags,
-            "style": style_override or style,
+            "style": style,
         }
 
 
@@ -85,7 +88,7 @@ def cli():
 def get_files(dirname):
     if not dirname:
         dirname = "~/wiki/"
-    p = pathlib.Path(dirname).expanduser()
+    p = pathlib.Path(dirname[0]).expanduser()
     return p.rglob("*.md")
 
 
