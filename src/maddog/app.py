@@ -21,30 +21,43 @@ ALL_TODO_RE = re.compile(
 )
 CHECKBOX_RE = re.compile(r"\s*-\s*\[([ x]?)\]\s*(.*)")
 TAG_SPLIT_RE = re.compile(r"\{([^:]+):([^}]+)\}")
-TODO_TODO_RE = re.compile(r"^(TODO):?\s*")
+TODO_TODO_RE = re.compile(
+    r"""^
+    (?:\s*-\s*)?
+    (TODO|IDEA|DONE):?     # label starts a line
+    """,
+    re.VERBOSE,
+)
 
 
-def parse_todo_tag(tag, val) -> tuple[str, str]:
-    """
-    return tag, style_override
-    """
-    if tag == "by":
-        dval = parser.parse(val)
-        days_left = dval - now
-        style = "red" if days_left.days <= 0 else "yellow"
-        return f"by {dval.date()} ({days_left.days})", style
-    else:
-        return f"{tag}:{val}", ""
+def get_files(dirname):
+    if not dirname:
+        dirname = "~/wiki/"
+    p = pathlib.Path(dirname[0]).expanduser()
+    return p.rglob("*.md")
 
 
-def scan_contents(file: pathlib.Path) -> dict:
-    text = file.read_text()
-    words = text.split()
-    return {"words": len(words), "todos": len(TODO_TODO_RE.findall(text))}
+def lod_table(data: list["TodoItem"]) -> Table | str:
+    """list of dicts to Table"""
+    if not data:
+        return "no results"
+
+    table = Table()
+    for key in data[0].fields():
+        table.add_column(key)
+
+    for row in data:
+        table.add_row(*row.to_row(), style=row.style)
+
+    return table
 
 
-def render_checkbox(done: bool):
-    return "☑" if done else "☐"
+@click.group()
+def cli():
+    pass
+
+
+# todo listing #####
 
 
 @dataclass
@@ -86,6 +99,23 @@ class TodoItem:
             return ""
         done = sum(1 if st[0] else 0 for st in self.subtasks)
         return f" {done}/{total}"
+
+
+def parse_todo_tag(tag, val) -> tuple[str, str]:
+    """
+    return tag, style_override
+    """
+    if tag == "by":
+        dval = parser.parse(val)
+        days_left = dval - now
+        style = "red" if days_left.days <= 0 else "yellow"
+        return f"by {dval.date()} ({days_left.days})", style
+    else:
+        return f"{tag}:{val}", ""
+
+
+def render_checkbox(done: bool):
+    return "☑" if done else "☐"
 
 
 def pull_todos(file: pathlib.Path):
@@ -130,6 +160,44 @@ def pull_todos(file: pathlib.Path):
         yield active_todo
 
 
+@cli.command()
+@click.argument("dirname", nargs=-1)
+def todos(dirname):
+    output = []  # list of data
+    for file in get_files(dirname):
+        output += pull_todos(file)
+    table = lod_table(output)
+    console.print(table)
+
+
+# ls command #####
+
+
+@dataclass
+class LsItem:
+    file: str
+    modified: datetime.datetime
+    words: str
+    todos: int
+    style: str
+
+    def fields(self):
+        return [
+            "file",
+            "modified",
+            "words",
+            "todos",
+        ]
+
+    def to_row(self):
+        return [
+            self.file,
+            human_readable_date(self.modified),
+            str(self.words),
+            str(self.todos),
+        ]
+
+
 def human_readable_date(dt: datetime.datetime) -> str:
     delta = now - dt
     if delta < datetime.timedelta(hours=1):
@@ -140,41 +208,10 @@ def human_readable_date(dt: datetime.datetime) -> str:
         return f"{int(delta.total_seconds() / 3600 / 24)}d ago"
 
 
-def lod_table(data: list[TodoItem]) -> Table | str:
-    """list of dicts to Table"""
-    if not data:
-        return "no results"
-
-    table = Table()
-    for key in data[0].fields():
-        table.add_column(key)
-
-    for row in data:
-        table.add_row(*row.to_row(), style=row.style)
-
-    return table
-
-
-@click.group()
-def cli():
-    pass
-
-
-def get_files(dirname):
-    if not dirname:
-        dirname = "~/wiki/"
-    p = pathlib.Path(dirname[0]).expanduser()
-    return p.rglob("*.md")
-
-
-@cli.command()
-@click.argument("dirname", nargs=-1)
-def todos(dirname):
-    output = []  # list of data
-    for file in get_files(dirname):
-        output += pull_todos(file)
-    table = lod_table(output)
-    console.print(table)
+def scan_contents(file: pathlib.Path) -> dict:
+    text = file.read_text()
+    words = text.split()
+    return {"words": len(words), "todos": len(TODO_TODO_RE.findall(text))}
 
 
 @cli.command()
@@ -187,12 +224,12 @@ def ls(dirname):
         modified = datetime.datetime.fromtimestamp(st.st_mtime)
         scan = scan_contents(file)
         output.append(
-            {
-                "file": file.name,
-                "modified": human_readable_date(modified),
+            LsItem(
+                file=file.name,
+                modified=modified,
+                style="yellow" if scan["todos"] else "white",
                 **scan,
-                "style": "yellow" if scan["todos"] else "white",
-            }
+            )
         )
     table = lod_table(output)
     console.print(table)
