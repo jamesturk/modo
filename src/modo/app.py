@@ -42,7 +42,10 @@ def get_files(dirname):
 
 
 def short_path(f):
-    return str(f).replace(short_path.base_dir, "")
+    if "/" in short_path.base_dir:
+        return str(f).replace(short_path.base_dir, "")
+    else:
+        return str(f)
 
 
 short_path.base_dir = ""
