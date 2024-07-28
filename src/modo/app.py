@@ -35,9 +35,17 @@ def get_files(dirname):
     if not dirname:
         dirname = "."
     else:
-        dirname = dirname[0]
+        dirname = dirname
+    print(dirname)
     p = pathlib.Path(dirname).expanduser()
     return p.rglob("*.md")
+
+
+def short_path(f):
+    return str(f).replace(short_path.base_dir, "")
+
+
+short_path.base_dir = ""
 
 
 def lod_table(data: list["TodoItem"]) -> Table | str:
@@ -78,7 +86,7 @@ def cli():
 
 @dataclass
 class TodoItem:
-    file: str
+    file: pathlib.Path
     status: str
     description: str
     tags: list[str]
@@ -95,7 +103,7 @@ class TodoItem:
 
     def to_row(self):
         return [
-            self.file,
+            short_path(self.file),
             self.status + self.subtask_status(),
             self.description + self.subtask_nested(),
             " | ".join(self.tags),
@@ -163,7 +171,7 @@ def pull_todos(file: pathlib.Path):
             elif status == "IDEA":
                 style = "blue"
             active_todo = TodoItem(
-                file=file.name,
+                file=file,
                 status=status,
                 description=description,
                 tags=tag_strs,
@@ -213,6 +221,7 @@ def apply_filter(items, rule):
 @click.option("--sort", "-s")
 @click.option("--filter", "-f", multiple=True)
 def todos(dirname, sort, filter):
+    short_path.base_dir = dirname
     # scan files
     output = []  # list of data
     for file in get_files(dirname):
@@ -235,7 +244,7 @@ def todos(dirname, sort, filter):
 
 @dataclass
 class LsItem:
-    file: str
+    file: pathlib.Path
     modified: datetime.datetime
     words: int
     todos: int
@@ -251,7 +260,7 @@ class LsItem:
 
     def to_row(self):
         return [
-            self.file,
+            short_path(self.file),
             human_readable_date(self.modified),
             str(self.words),
             str(self.todos),
@@ -295,6 +304,7 @@ def scan_contents(file: pathlib.Path) -> dict:
 @click.argument("dirname", default="")
 @click.option("--sort", "-s")
 def ls(dirname, sort):
+    short_path.base_dir = dirname
     # scan files
     output = []
     for file in get_files(dirname):
@@ -303,7 +313,7 @@ def ls(dirname, sort):
         scan = scan_contents(file)
         output.append(
             LsItem(
-                file=file.name,
+                file=file,
                 modified=modified,
                 style="yellow" if scan["todos"] else "white",
                 **scan,
