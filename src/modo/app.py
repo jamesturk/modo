@@ -36,7 +36,6 @@ def get_files(dirname):
         dirname = "."
     else:
         dirname = dirname
-    print(dirname)
     p = pathlib.Path(dirname).expanduser()
     return p.rglob("*.md")
 
@@ -142,10 +141,13 @@ def parse_todo_tag(tag, val) -> tuple[str, str]:
     return tag, style_override
     """
     if tag == "by":
-        dval = parser.parse(val)
-        days_left = dval - now
-        style = "red" if days_left.days <= 0 else "yellow"
-        return f"by {dval.date()} ({days_left.days})", style
+        try:
+            dval = parser.parse(val)
+            days_left = dval - now
+            style = "red" if days_left.days <= 0 else "yellow"
+            return f"by {dval.date()} ({days_left.days})", style
+        except parser.ParserError:
+            return f"by: {val}", "#cccccc"
     else:
         return f"{tag}:{val}", ""
 
@@ -231,6 +233,8 @@ def todos(dirname, sort, filter):
         output += pull_todos(file)
 
     # filter
+    if not filter:
+        filter = ["status:TODO"]
     for rule in filter:
         output = apply_filter(output, rule)
 
